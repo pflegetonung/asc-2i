@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import ServiceManagement
 
-/// Обёртка над SMAppService: регистрирует само приложение как Login Item.
+/// SMAppService wrapper: registers the app itself as a login item.
 @Observable final class LaunchAtLogin {
     static let shared = LaunchAtLogin()
 
@@ -16,7 +16,7 @@ import ServiceManagement
 
     var requiresApproval: Bool { status == .requiresApproval }
 
-    /// При самом первом запуске включаем автозапуск — это поведение по умолчанию.
+    /// Turns on launch at login on the very first launch; that's the default behavior.
     func enableOnFirstLaunch() {
         let key = "didConfigureLaunchAtLogin"
         guard !UserDefaults.standard.bool(forKey: key) else { return }

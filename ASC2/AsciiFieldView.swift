@@ -1,16 +1,16 @@
 import MetalKit
 import SwiftUI
 
-/// Фон из ASCII-символов на строгой сетке.
-/// Символы не двигаются: «плавание» — это медленно меняющаяся яркость (3D-шум по x, y, времени),
-/// а сами символы время от времени случайно заменяются на другие.
-/// Рендер — Metal (`AsciiFieldRenderer`), чтобы фон мог крутиться весь день, не нагружая CPU.
+/// Background of ASCII glyphs on a fixed grid.
+/// Glyphs never move: the "drift" is slowly changing brightness (3D noise over x, y and time),
+/// and each glyph is randomly swapped for another from time to time.
+/// Rendered with Metal (`AsciiFieldRenderer`) so it can run all day without loading the CPU.
 struct AsciiFieldView: NSViewRepresentable {
     var cellSize: CGFloat = 14
     var fontSize: CGFloat = 11
-    /// Максимальная непрозрачность самых ярких символов — держим фон приглушённым.
+    /// Opacity of the brightest glyphs; keeps the background subdued.
     var maxOpacity: Double = 0.3
-    /// Останавливает анимацию, когда фон никто не видит (окно перекрыто, экран спит).
+    /// Stops the animation when nobody can see it (window covered, display asleep).
     var isPaused = false
 
     func makeCoordinator() -> AsciiFieldRenderer {
@@ -27,7 +27,7 @@ struct AsciiFieldView: NSViewRepresentable {
     func updateNSView(_ view: MTKView, context: Context) {
         context.coordinator.configuration = .init(cellSize: cellSize, fontSize: fontSize, maxOpacity: maxOpacity)
         let paused = isPaused || context.environment.accessibilityReduceMotion
-        // На паузе MTKView рисует только по запросу (ресайз, смена экрана), последний кадр остаётся на месте.
+        // While paused, MTKView draws only on demand (resize, display change); the last frame stays on screen.
         view.isPaused = paused
         view.enableSetNeedsDisplay = paused
         if paused { view.needsDisplay = true }

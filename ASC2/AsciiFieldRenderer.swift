@@ -3,8 +3,8 @@ import CoreText
 import MetalKit
 import SwiftUI
 
-/// Рисует ASCII-поле через Metal: вся математика клеток живёт в вершинном шейдере (`AsciiFieldShader`),
-/// а символы берутся из заранее отрисованного атласа. CPU на кадр почти ничего не делает.
+/// Draws the ASCII field with Metal: all per-cell math lives in the vertex shader (`AsciiFieldShader`)
+/// and glyphs come from a pre-rendered atlas. The CPU does almost nothing per frame.
 final class AsciiFieldRenderer: NSObject, MTKViewDelegate {
     struct Configuration: Equatable {
         var cellSize: CGFloat
@@ -12,7 +12,7 @@ final class AsciiFieldRenderer: NSObject, MTKViewDelegate {
         var maxOpacity: Double
     }
 
-    /// Раскладка совпадает с `FieldUniforms` в шейдере.
+    /// Layout matches `FieldUniforms` in the shader.
     private struct Uniforms {
         var viewSize: SIMD2<Float>
         var origin: SIMD2<Float>
@@ -28,15 +28,15 @@ final class AsciiFieldRenderer: NSObject, MTKViewDelegate {
         var atlasRows: UInt32
     }
 
-    /// Наборы символов по яркости: тусклые клетки — «лёгкие» знаки, яркие — «плотные».
-    /// Каждый ярус — отдельная строка атласа.
+    /// Glyph sets by brightness: dim cells get "light" glyphs, bright cells get "dense" ones.
+    /// Each tier is one atlas row.
     private static let tiers: [[String]] = [
         [".", "-", "`", "'"],
         ["-", "+", ":", "=", "~"],
         ["+", "x", "o", "*", "="],
         ["x", "o", "X", "O", "#", "%"],
     ]
-    /// Сколько ступеней прозрачности у клеток.
+    /// Number of opacity steps for cells.
     private static let opacityLevels = 24
 
     var configuration = Configuration(cellSize: 14, fontSize: 11, maxOpacity: 0.3) {
@@ -99,7 +99,7 @@ final class AsciiFieldRenderer: NSObject, MTKViewDelegate {
         let cellSize = CGFloat(cell)
         let columns = Int(size.width / cellSize) + 1
         let rows = Int(size.height / cellSize) + 1
-        // Центрируем сетку, чтобы поля по краям были одинаковыми; углы клеток — ровно по пикселям.
+        // Center the grid so the margins are equal; cell corners land exactly on pixels.
         let originX = ((size.width - CGFloat(columns - 1) * cellSize - cellSize) / 2).rounded()
         let originY = ((size.height - CGFloat(rows - 1) * cellSize - cellSize) / 2).rounded()
 
@@ -133,7 +133,7 @@ final class AsciiFieldRenderer: NSObject, MTKViewDelegate {
         buffer.commit()
     }
 
-    /// Атлас покрытия (r8): ярус — строка, символ — столбец, каждый символ по центру своей клетки.
+    /// Coverage atlas (r8): tier per row, glyph per column, each glyph centered in its cell.
     private func makeAtlas(device: MTLDevice, cell: Int, scale: CGFloat) -> MTLTexture? {
         let atlasColumns = Self.tiers.map(\.count).max() ?? 1
         let width = cell * atlasColumns
@@ -157,7 +157,7 @@ final class AsciiFieldRenderer: NSObject, MTKViewDelegate {
                     let line = CTLineCreateWithAttributedString(string)
                     var ascent: CGFloat = 0, descent: CGFloat = 0, leading: CGFloat = 0
                     let advance = CGFloat(CTLineGetTypographicBounds(line, &ascent, &descent, &leading))
-                    // У CGContext ось y смотрит вверх, а строка 0 атласа — верхняя.
+                    // CGContext's y axis points up, while atlas row 0 is the top one.
                     let cellX = CGFloat(column * cell)
                     let cellY = CGFloat(height - (row + 1) * cell)
                     context.textPosition = CGPoint(x: cellX + (CGFloat(cell) - advance) / 2,

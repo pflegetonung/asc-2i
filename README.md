@@ -24,6 +24,25 @@ xcodebuild -project ASC2.xcodeproj -scheme ASC2 -configuration Release -derivedD
 
 Copy `build/Build/Products/Release/ASCII Wallpaper.app` to `/Applications` so the login item points at the installed copy.
 
+## Release DMG
+
+```bash
+scripts/build-dmg.sh
+```
+
+Builds a universal (Apple Silicon + Intel) Release app and packs it into `build/ASCII-Wallpaper-<version>.dmg`: a Finder window with the app and an Applications link to drag it onto. The first run asks to let Terminal control Finder (used to lay out the window).
+
+Signing depends on the keychain:
+
+- **Developer ID Application** certificate present: the app and DMG are signed with it. Set `NOTARY_PROFILE` to a `notarytool` keychain profile to also notarize and staple the DMG:
+
+  ```bash
+  xcrun notarytool store-credentials <profile> --apple-id <apple-id> --team-id <team-id>
+  NOTARY_PROFILE=<profile> scripts/build-dmg.sh
+  ```
+
+- **Apple Development** only: the DMG works, but Gatekeeper blocks the app on other Macs. Users have to open it once via **System Settings › Privacy & Security › Open Anyway**.
+
 ## Project layout
 
 | File | Purpose |

@@ -5,7 +5,7 @@ import SwiftUI
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        // Обычных окон у приложения нет: обои создаёт AppDelegate, настройки открываются при повторном запуске.
+        // The app has no regular windows: AppDelegate creates the wallpaper, settings open when the app is reopened.
         Settings {
             SettingsView()
         }
@@ -21,7 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         LaunchAtLogin.shared.enableOnFirstLaunch()
     }
 
-    /// Приходит, когда пользователь открывает уже запущенное приложение (Finder, Launchpad, Spotlight).
+    /// Called when the user opens the already running app (Finder, Launchpad, Spotlight).
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         settings.show()
         return false

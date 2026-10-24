@@ -41,7 +41,7 @@ struct SettingsView: View {
     }
 }
 
-/// Мини-окно настроек; показывается только при повторном открытии уже запущенного приложения.
+/// Small settings window; shown only when the already running app is opened again.
 final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     convenience init() {
         let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView()))

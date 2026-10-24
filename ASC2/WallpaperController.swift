@@ -3,7 +3,7 @@ import Observation
 import OSLog
 import SwiftUI
 
-/// Состояние воспроизведения одного окна-обоев.
+/// Playback state of a single wallpaper window.
 @Observable final class WallpaperPlayback {
     var isPaused = false
 }
@@ -17,8 +17,8 @@ private struct WallpaperContent: View {
     }
 }
 
-/// Окно без рамки на уровне рабочего стола: выше системных обоев, но ниже иконок и всех обычных окон.
-/// Клики проходят насквозь в Finder, окно видно на всех Spaces и не участвует в Mission Control / Cmd-Tab.
+/// Borderless desktop-level window: above the system wallpaper but below desktop icons and all regular windows.
+/// Clicks pass through to Finder; the window shows on every Space and stays out of Mission Control / Cmd-Tab.
 final class WallpaperWindow: NSWindow {
     let playback = WallpaperPlayback()
     let screenID: CGDirectDisplayID
@@ -42,9 +42,9 @@ final class WallpaperWindow: NSWindow {
     override var canBecomeMain: Bool { false }
 }
 
-/// Держит по одному окну-обоям на каждый экран и пересобирает их при изменении конфигурации мониторов.
-/// Анимация встаёт на паузу, когда её никто не видит: экран спит или заблокирован, сессия неактивна,
-/// либо дисплей целиком закрыт окном (полноэкранное приложение).
+/// Keeps one wallpaper window per display and rebuilds them when the display configuration changes.
+/// Animation pauses when nobody can see it: displays are asleep or locked, the session is inactive,
+/// or a display is fully covered by a window (a full-screen app).
 final class WallpaperController {
     private var windows: [WallpaperWindow] = []
     private var screensAsleep = false
@@ -70,8 +70,8 @@ final class WallpaperController {
         observe(distributed, Notification.Name("com.apple.screenIsLocked")) { $0.screenLocked = true }
         observe(distributed, Notification.Name("com.apple.screenIsUnlocked")) { $0.screenLocked = false }
 
-        // Окна на уровне рабочего стола не получают изменений occlusionState, поэтому перекрытие
-        // проверяем сами по списку окон: на смене Space/приложения и раз в пару секунд (ресайз окон).
+        // Desktop-level windows never get occlusionState changes, so coverage is checked manually
+        // from the window list: on Space/app switches and every couple of seconds (window resizes).
         coverageTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.updatePlayback() }
         }
@@ -79,7 +79,7 @@ final class WallpaperController {
         updatePlayback()
     }
 
-    /// Подписка, после которой состояние воспроизведения пересчитывается.
+    /// Subscribes to a notification; playback state is recomputed after each one.
     private func observe(_ center: NotificationCenter, _ name: Notification.Name,
                          _ update: @escaping (WallpaperController) -> Void) {
         let token = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
@@ -124,7 +124,7 @@ final class WallpaperController {
         }
     }
 
-    /// Дисплеи, которые целиком закрыты одним обычным непрозрачным окном текущего Space.
+    /// Displays fully covered by a single regular opaque window on the current Space.
     private func coveredDisplays() -> Set<CGDirectDisplayID> {
         guard let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements],
                                                     kCGNullWindowID) as? [[String: Any]] else { return [] }
