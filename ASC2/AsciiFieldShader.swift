@@ -14,11 +14,15 @@ struct FieldUniforms {
     float maxOpacity;
     float opacityLevels;
     float4 glyphColor;
-    uint4 tierCounts;     // number of glyphs in each atlas tier
+    uint4 tierCounts;     // number of glyphs in each clouds tier
     uint columns;
     uint rows;
     uint atlasColumns;
     uint atlasRows;
+    uint pattern;         // 0: clouds, 1: image
+    uint rampCount;       // glyphs in the weight ramp (the atlas row after the tiers)
+    uint tierRows;        // atlas rows taken by the clouds tiers
+    uint padding;
 };
 
 struct CellOut {
@@ -74,21 +78,43 @@ static float fbm(float3 p) {
 }
 
 /// One instance per grid cell (four triangle strip vertices).
-/// Glyphs never move: the "drift" is slowly changing brightness (3D noise over x, y and time),
-/// and each glyph is randomly swapped for another from time to time.
+/// Glyphs never move. With clouds, the "drift" is slowly changing brightness (3D noise over x, y and time);
+/// with an image, brightness comes from the picture. Either way each glyph is randomly swapped
+/// for another from time to time.
 vertex CellOut cellVertex(uint vid [[vertex_id]],
                           uint iid [[instance_id]],
-                          constant FieldUniforms &u [[buffer(0)]]) {
+                          constant FieldUniforms &u [[buffer(0)]],
+                          texture2d<float, access::read> brightness [[texture(0)]]) {
     CellOut out;
     int column = int(iid % u.columns);
     int row = int(iid / u.columns);
 
-    float n = fbm(float3(float(column) * 0.085, float(row) * 0.085, u.time * 0.05));
-    // Blobs: anything below 0.42 nearly fades out, above 0.78 is full brightness.
-    float blob = smoothstep(0.42, 0.78, n);
-    // Static brightness variation between neighbors so blobs don't look flat.
-    float jitter = 0.8 + 0.2 * hash(column, row, -1);
-    float intensity = (0.08 + 0.92 * blob) * jitter;
+    // Each cell swaps its glyph at its own pace: a 2–8 s period with its own phase offset.
+    float period = 2 + 6 * hash(column, row, -2);
+    float phase = hash(column, row, -3);
+    int epoch = int(floor(u.time / period + phase));
+    float pick = hash(column, row, epoch);
+
+    float intensity;
+    uint2 slot;  // atlas column and row
+    if (u.pattern == 1) {
+        intensity = brightness.read(uint2(column, row)).r;
+        // The ramp is sorted by ink coverage: swap only between the glyph whose weight matches
+        // the brightness and its two neighbors of nearly the same weight.
+        int center = int(round(intensity * float(u.rampCount - 1)));
+        int index = clamp(center + int(pick * 3) - 1, 0, int(u.rampCount) - 1);
+        slot = uint2(index, u.tierRows);
+    } else {
+        float n = fbm(float3(float(column) * 0.085, float(row) * 0.085, u.time * 0.05));
+        // Blobs: anything below 0.42 nearly fades out, above 0.78 is full brightness.
+        float blob = smoothstep(0.42, 0.78, n);
+        // Static brightness variation between neighbors so blobs don't look flat.
+        float jitter = 0.8 + 0.2 * hash(column, row, -1);
+        intensity = (0.08 + 0.92 * blob) * jitter;
+        uint tier = min(u.tierRows - 1, uint(blob * float(u.tierRows)));
+        uint count = u.tierCounts[tier];
+        slot = uint2(uint(pick * float(count)) % count, tier);
+    }
 
     int level = min(int(u.opacityLevels) - 1, int(intensity * u.opacityLevels));
     if (level <= 0) {
@@ -99,18 +125,10 @@ vertex CellOut cellVertex(uint vid [[vertex_id]],
         return out;
     }
 
-    // Each cell swaps its glyph at its own pace: a 2–8 s period with its own phase offset.
-    float period = 2 + 6 * hash(column, row, -2);
-    float phase = hash(column, row, -3);
-    int epoch = int(floor(u.time / period + phase));
-    uint tier = min(u.atlasRows - 1, uint(blob * float(u.atlasRows)));
-    uint count = u.tierCounts[tier];
-    uint glyph = uint(hash(column, row, epoch) * float(count)) % count;
-
     float2 corner = float2(vid & 1, vid >> 1);
     float2 p = u.origin + (float2(column, row) + corner) * u.cellSize;
     out.position = float4(p.x / u.viewSize.x * 2 - 1, 1 - p.y / u.viewSize.y * 2, 0, 1);
-    out.uv = (float2(glyph, tier) + corner) / float2(u.atlasColumns, u.atlasRows);
+    out.uv = (float2(slot) + corner) / float2(u.atlasColumns, u.atlasRows);
     out.opacity = u.maxOpacity * float(level) / (u.opacityLevels - 1);
     return out;
 }

@@ -10,6 +10,9 @@ struct AsciiFieldView: NSViewRepresentable {
     var fontSize: CGFloat = 11
     /// Opacity of the brightest glyphs; keeps the background subdued.
     var maxOpacity: Double = 0.3
+    var glyphColor: Color = Theme.glyph
+    /// Picture whose brightness the glyphs trace instead of the drifting clouds.
+    var image: CGImage?
     /// Stops the animation when nobody can see it (window covered, display asleep).
     var isPaused = false
 
@@ -26,6 +29,10 @@ struct AsciiFieldView: NSViewRepresentable {
 
     func updateNSView(_ view: MTKView, context: Context) {
         context.coordinator.configuration = .init(cellSize: cellSize, fontSize: fontSize, maxOpacity: maxOpacity)
+        context.coordinator.targetGlyphColor = glyphColor.srgbComponents
+        context.coordinator.image = image
+        // A still picture only swaps glyphs every few seconds, so a low frame rate is enough.
+        view.preferredFramesPerSecond = image == nil ? 30 : 10
         let paused = isPaused || context.environment.accessibilityReduceMotion
         // While paused, MTKView draws only on demand (resize, display change); the last frame stays on screen.
         view.isPaused = paused

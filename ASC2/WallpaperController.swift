@@ -10,10 +10,23 @@ import SwiftUI
 
 private struct WallpaperContent: View {
     let playback: WallpaperPlayback
+    private let settings = AppSettings.shared
+    private let thermal = ThermalMonitor.shared
 
     var body: some View {
-        AsciiFieldView(isPaused: playback.isPaused)
+        AsciiFieldView(glyphColor: glyphColor, image: image, isPaused: playback.isPaused)
             .ignoresSafeArea()
+    }
+
+    private var image: CGImage? {
+        settings.pattern == .image ? settings.image : nil
+    }
+
+    private var glyphColor: Color {
+        switch settings.colorMode {
+        case .still: Theme.glyph
+        case .thermal: ThermalPalette.glyph(pressure: thermal.pressure, temperature: thermal.temperature)
+        }
     }
 }
 

@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var settings = SettingsWindowController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        _ = AppSettings.shared  // starts thermal monitoring if that mode is selected
         wallpaper.start()
         LaunchAtLogin.shared.enableOnFirstLaunch()
     }
